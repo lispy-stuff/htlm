@@ -71,6 +71,9 @@
 (define-elem html ()
   manifest)
 
+(defmethod write-html :before ((elem html-elem) out)
+  (write-string "<!DOCTYPE html>" out))
+
 (define-elem basic ()
   accesskey 
   (class :initform nil :accessor css-class)

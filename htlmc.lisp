@@ -5,7 +5,11 @@
 
 (in-package htlm)
 
-(dolist (fn (rest sb-ext:*posix-argv*))
-  (let* ((f (open fn))
-         (elem (read f)))
-    (write-html (eval elem) *standard-output*)))
+(let* ((filename (second sb-ext:*posix-argv*))
+       (elem (with-open-file (in filename :direction :input)
+               (read in))))
+  (with-open-file (out (make-pathname :type "html" :defaults filename)
+                       :direction :output
+                       :if-exists :supersede
+                       :if-does-not-exist :create)
+    (write-html (eval elem) out)))
