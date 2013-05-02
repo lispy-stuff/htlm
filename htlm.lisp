@@ -6,6 +6,10 @@
 
 (defparameter *stack* nil)
 
+(defparameter <> nil)
+(defparameter <<>> nil)
+(defparameter <<<>>> nil)
+
 (defclass node ()
   ())
 
@@ -56,7 +60,7 @@
          (,@(mapcar (lambda (a)
                       (if (consp a) 
                           a 
-                          `(,a :initform nil :accessor ,a)))
+                          `(,a :initform nil :initarg ,(kw a) :accessor ,a)))
                     attrs)))
        
        (defconst ,(sym tag '-attr-names) '(,@attr-names))
@@ -76,7 +80,7 @@
 
 (define-elem basic ()
   accesskey 
-  (class :initform nil :accessor css-class)
+  (class :initform nil :initarg :class :accessor css-class)
   contenteditable
   contextmenu
   dir
@@ -149,7 +153,7 @@
   media
   rel
   target
-  (type :initform nil :accessor mime-type))
+  (type :initform nil :initarg :type :accessor mime-type))
 
 (define-elem body (basic)
   onafterprint
@@ -168,43 +172,54 @@
   onstorage
   onundo)
 
-(defmac do-elem (tag &body body)
+(define-elem h (basic))
+(define-elem h1 (h))
+(define-elem h2 (h))
+(define-elem h3 (h))
+
+(defmac do-elem (tag attrs &body body)
   `(progn
-     (let ((,$elem (make-instance ',(sym tag '-elem))))
+     (let ((,$elem (make-instance ',(sym tag '-elem) ,@attrs)))
        (when *stack* (add-child-node (first *stack*) ,$elem))
        (push ,$elem *stack*)
-       (with-slots (,@(symbol-value (sym tag '-attr-names))) ,$elem
+       (let ((<> (first *stack*))
+             (<<>> (second *stack*))
+             (<<<>>> (third *stack*)))
          ,@body)
        (pop *stack*))))
 
-(defmac do-a (href &body body)
-  `(do-elem a
-     (setf href ,href)
-     ,@body))
+(defmac do-a (attrs &body body)
+  `(do-elem a ,attrs ,@body))
 
-(defmac do-body (&body body)
-  `(do-elem body
-     (macrolet ((a (href &body body)
-                  `(do-a ,href ,@body))
-                (text (content)
-                  `(add-child-node (first *stack*)
-                                   (make-instance 'text-node
-                                                  :content ,content))))
-       ,@body)))
+(defmac do-body (attrs &body body)
+  `(do-elem body ,attrs
+            (macrolet ((a (attrs &body body)
+                         `(do-a ,attrs ,@body))
+                       (h1 (attrs &body body)
+                         `(do-h1 ,attrs ,@body))
+                       (text (content)
+                         `(add-child-node <>
+                                          (make-instance 'text-node
+                                                         :content ,content))))
+              ,@body)))
 
-(defmac html (&body body)
-  `(do-elem html
-     (macrolet ((body (&body body)
-                  `(do-body ,@body)))
-       ,@body)))
+(defmac do-h1 (attrs &body body)
+  `(do-elem h1 ,attrs ,@body))
+
+(defmac do-html (&body body)
+  `(do-elem html ()
+            (macrolet ((body (attrs &body body)
+                         `(do-body ,attrs ,@body)))
+              ,@body)))
 
 (test (:htlm)
   (let ((res (with-output-to-string (out)
                (write-html
-                (html
-                  (body (a "abc"
-                           (test-string= href "abc")
-                           (setf href "def")
-                           (text "ghi"))))
+                (do-html
+                  (body ()
+                        (a (:href "abc")
+                           (test-string= (href <>) "abc")
+                           (setf (href <>) "def")
+                           (h1 () (text "ghi")))))
                 out))))
-    (test-string= res "<html><body><a href='def'>ghi</a></body></html>")))
+    (test-string= res "<!DOCTYPE html><html><body><a href='def'><h1>ghi</h1></a></body></html>")))

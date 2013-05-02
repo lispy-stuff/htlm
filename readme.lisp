@@ -1,4 +1,3 @@
-(html
- (body (a "abc"
-          (setf href "def")
-          (text "ghi"))))
+(do-html
+  (body ()
+        (h1 () (text "Hyper Text Lisp Macros"))))
