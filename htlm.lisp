@@ -24,7 +24,7 @@
 (defclass elem (node)
    ((child-nodes :initform nil)))
 
-(defgeneric tag-name (elem))
+(defgeneric tag (elem))
 
 (defgeneric attrs (elem))
 
@@ -35,7 +35,7 @@
   (reverse (slot-value elem 'child-nodes)))
 
 (defmethod write-html ((node elem) out)
-  (format out "<~A" (tag-name node))
+  (format out "<~A" (string-downcase (tag node)))
 
   (dolist (a (attrs node))
     (let-if (v (rest a))
@@ -46,7 +46,7 @@
         (write-char #\> out)
         (dolist (c (child-nodes node))
           (write-html c out))
-        (format out "</~A>" (tag-name node)))
+        (format out "</~A>" (string-downcase (tag node))))
       (write-string "/>" out)))
 
 (defmac define-elem (tag supers &rest attrs)
@@ -65,8 +65,8 @@
        
        (defconst ,(sym tag '-attr-names) '(,@attr-names))
 
-       (defmethod tag-name ((elem ,class-name))
-         ,(string-downcase tag))
+       (defmethod tag ((elem ,class-name))
+         ,(kw tag))
        
        (defmethod attrs ((elem ,class-name))
          (mapcar (lambda (a) (cons (kw a) (slot-value elem a)))
@@ -218,6 +218,8 @@
                 (do-html
                   (body ()
                         (a (:href "abc")
+                           (test-eq (tag <<<>>>) :html)
+                           (test-eq (tag <<>>) :body)
                            (test-string= (href <>) "abc")
                            (setf (href <>) "def")
                            (h1 () (text "ghi")))))
