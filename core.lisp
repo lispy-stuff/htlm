@@ -2,13 +2,14 @@
   (:export assq
            compose
            defconst defmac dolist-reverse doplist do-while do-with do-until
+           eval-file
            filter flatten
            kw
            let-if
            mapcars maptree memq mexpand
            plist-remove-if prob
            rassq remove-tree
-           str sym sym<)
+           slurp str sym sym<)
   (:use common-lisp))
 
 (in-package core)
@@ -86,6 +87,18 @@
 (defmacro do-until (test &body body)
   "Execute body while cond is NIL"
   `(do () (,test) ,@body))
+
+(defun eval-file (path)
+  (with-open-file (stream path)
+    (let ((eof (gensym))
+          (res nil))
+      (tagbody
+       continue
+         (let ((form (read stream nil eof)))
+           (unless (eq form eof)
+             (setf res (eval form))
+             (go continue))))
+      res)))
 
 (defmacro let-if ((var expr) &body body)
   `(let ((,var ,expr))
@@ -165,6 +178,12 @@
                                acc
                                (cons (car tree) acc)))))))
     (rec tree nil)))
+
+(defun slurp (path)
+  (with-open-file (stream path)
+    (let ((data (make-string (file-length stream))))
+      (read-sequence data stream)
+      data)))
 
 (defun sym (&rest args)
   "Generate symbol from ARGS"
