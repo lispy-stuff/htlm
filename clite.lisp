@@ -16,7 +16,7 @@
   (:export run-tests
            test
            test= test-eq test-eql test-equal test-equalp
-           test-fail test-pass
+           test-fail test-null test-pass
            test-string= testp)
   (:use common-lisp core))
 
@@ -66,6 +66,11 @@ remaining RUNNING-TAGS"
 (defun testp (condition &optional msg)
   "Signal test failure if CONDITION is false"
   (unless condition (test-fail msg))
+  (test-pass))
+
+(defun test-null (condition &optional msg)
+  "Signal test failure if CONDITION is true"
+  (unless (null condition) (test-fail msg))
   (test-pass))
 
 (defmac define-ops (&rest ops)

@@ -1,5 +1,5 @@
 (defpackage htlm
-  (:export *stack* write-html)
+  (:export *stack* to-html write-html)
   (:use clite common-lisp core))
 
 (in-package htlm)
@@ -14,6 +14,10 @@
   ())
 
 (defgeneric write-html (node out))
+
+(defun to-html (node)
+  (with-output-to-string (out)
+    (Write-html node out)))
 
 (defclass text-node (node)
   ((content :initarg :content :reader content)))
@@ -188,11 +192,8 @@
          ,@body)
        (pop *stack*))))
 
-(defmac do-a (attrs &body body)
-  `(do-elem a ,attrs ,@body))
-
-(defmac do-body (attrs &body body)
-  `(do-elem body ,attrs
+(defmac do-body-elem (tag attrs &body body)
+  `(do-elem ,tag ,attrs
             (macrolet ((a (attrs &body body)
                          `(do-a ,attrs ,@body))
                        (h1 (attrs &body body)
@@ -203,8 +204,14 @@
                                                          :content ,content))))
               ,@body)))
 
+(defmac do-a (attrs &body body)
+  `(do-body-elem a ,attrs ,@body))
+
+(defmac do-body (attrs &body body)
+  `(do-body-elem body ,attrs ,@body))
+
 (defmac do-h1 (attrs &body body)
-  `(do-elem h1 ,attrs ,@body))
+  `(do-body-elem h1 ,attrs ,@body))
 
 (defmac do-html (&body body)
   `(do-elem html ()
@@ -213,15 +220,33 @@
               ,@body)))
 
 (test (:htlm)
-  (let ((res (with-output-to-string (out)
-               (write-html
-                (do-html
-                  (body ()
-                        (a (:href "abc")
-                           (test-eq (tag <<<>>>) :html)
-                           (test-eq (tag <<>>) :body)
-                           (test-string= (href <>) "abc")
-                           (setf (href <>) "def")
-                           (h1 () (text "ghi")))))
-                out))))
-    (test-string= res "<!DOCTYPE html><html><body><a href='def'><h1>ghi</h1></a></body></html>")))
+  (test (:empty)
+    (do-html
+      (body ())
+      (test-string= (to-html <>)
+                    "<!DOCTYPE html><html><body/></html>")))
+  (test (:change :attr)
+    (do-a (:href "old link href")
+      (test-string= (href <>) "old link href")
+      (setf (href <>) "new link href")
+      (test-string= (to-html <>)
+                    "<a href='new link href'/>")))
+  (test (:stack)
+    (do-html
+      (test-null <<<>>>)
+      (test-null <<>>)
+      (test-eq (tag <>) :html)
+      (body ()
+            (test-null <<<>>>)
+            (test-eq (tag <<>>) :html)
+            (test-eq (tag <>) :body)
+            (a ()
+               (test-eq (tag <<<>>>) :html)
+               (test-eq (tag <<>>) :body)
+               (test-eq (tag <>) :a))
+            (test-null <<<>>>)
+            (test-eq (tag <<>>) :html)
+            (test-eq (tag <>) :body))
+      (test-null <<<>>>)
+      (test-null <<>>)
+      (test-eq (tag <>) :html))))
