@@ -1,3 +1,6 @@
 (do-html
-  (body ()
-        (h1 () (text "Hyper Text Lisp Macros"))))
+  (let ((title "Hyper Text Lisp Macros"))
+    (head
+     (title title)
+    (body ()
+          (h1 () (text title))))))

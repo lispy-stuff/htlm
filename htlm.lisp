@@ -181,6 +181,12 @@
 (define-elem h2 (h))
 (define-elem h3 (h))
 
+(define-elem head ())
+(define-elem title ())
+
+(defun add-text (content)
+  (add-child-node <> (make-instance 'text-node :content content)))
+
 (defmac do-elem (tag attrs &body body)
   `(progn
      (let ((,$elem (make-instance ',(sym tag '-elem) ,@attrs)))
@@ -199,9 +205,7 @@
                        (h1 (attrs &body body)
                          `(do-h1 ,attrs ,@body))
                        (text (content)
-                         `(add-child-node <>
-                                          (make-instance 'text-node
-                                                         :content ,content))))
+                         `(add-text ,content)))
               ,@body)))
 
 (defmac do-a (attrs &body body)
@@ -213,18 +217,30 @@
 (defmac do-h1 (attrs &body body)
   `(do-body-elem h1 ,attrs ,@body))
 
+(defun add-title (content)
+  (do-elem title () (add-text content)))
+
+(defmac do-head (&body body)
+  `(do-elem head ()
+     (macrolet ((title (content)
+                  `(add-title ,content)))
+       ,@body)))
+
 (defmac do-html (&body body)
   `(do-elem html ()
             (macrolet ((body (attrs &body body)
-                         `(do-body ,attrs ,@body)))
+                         `(do-body ,attrs ,@body))
+                       (head (&body body)
+                         `(do-head ,@body)))
               ,@body)))
 
 (test (:htlm)
   (test (:empty)
     (do-html
+      (head ())
       (body ())
       (test-string= (to-html <>)
-                    "<!DOCTYPE html><html><body/></html>")))
+                    "<!DOCTYPE html><html><head/><body/></html>")))
   (test (:change :attr)
     (do-a (:href "old link href")
       (test-string= (href <>) "old link href")
